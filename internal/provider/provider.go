@@ -148,5 +148,7 @@ func (p *TcgSandboxProvider) DataSources(ctx context.Context) []func() datasourc
 }
 
 func (p *TcgSandboxProvider) Resources(ctx context.Context) []func() resource.Resource {
-	return nil
+	return []func() resource.Resource{
+		NewGameResource,
+	}
 }

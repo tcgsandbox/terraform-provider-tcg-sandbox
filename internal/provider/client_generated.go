@@ -262,6 +262,7 @@ type Game struct {
 	Description             string        `json:"description"`
 	GamePlayData            *GamePlayData `json:"gamePlayData,omitempty"`
 	Id                      string        `json:"id"`
+	Metadata                Metadata      `json:"metadata"`
 	Name                    string        `json:"name"`
 
 	// Options Configuration options for how the game displays cards and other elements.
@@ -271,8 +272,8 @@ type Game struct {
 	Owner *string `json:"owner,omitempty"`
 
 	// Playable Indicates whether the game is ready to be played (has sufficient content like cards, sets, etc.). This field is read-only and not included in POST/PUT requests.
-	Playable   bool    `json:"playable"`
-	TitleColor *string `json:"titleColor,omitempty"`
+	Playable bool       `json:"playable"`
+	Stats    *GameStats `json:"stats,omitempty"`
 }
 
 // GameAttributeType The types supported by game attributes.
@@ -339,6 +340,12 @@ type GameSet struct {
 	Id       string   `json:"id"`
 	Metadata Metadata `json:"metadata"`
 	Name     string   `json:"name"`
+}
+
+// GameStats defines model for GameStats.
+type GameStats struct {
+	// StarCount The number of users who have starred this game.
+	StarCount int64 `json:"starCount"`
 }
 
 // GridSlot defines model for GridSlot.
@@ -424,15 +431,6 @@ type PageTreeSection struct {
 	Slug string `json:"slug"`
 }
 
-// SaveGridRequest defines model for SaveGridRequest.
-type SaveGridRequest struct {
-	// PlayerCount The current player count setting for the game.
-	PlayerCount int `json:"playerCount"`
-
-	// Slots Array of grid slots defining the game board layout.
-	Slots []GridSlot `json:"slots"`
-}
-
 // SlotType The types of content a grid slot can hold.
 type SlotType string
 
@@ -468,6 +466,9 @@ type User struct {
 
 	// Role The roles supported by the TCG Sandbox API.
 	Role *UserRole `json:"role,omitempty"`
+
+	// StarredGames List of game IDs that the user has starred.
+	StarredGames *[]string `json:"starredGames,omitempty"`
 }
 
 // UserDeck defines model for UserDeck.
@@ -520,9 +521,6 @@ type CreateGameJSONBody struct {
 	BannerVerticalAlignment int    `json:"bannerVerticalAlignment"`
 	Description             string `json:"description"`
 	Name                    string `json:"name"`
-
-	// TitleColor Hex color code for the title text. E.g., '#fff'
-	TitleColor *string `json:"titleColor,omitempty"`
 }
 
 // CreateGameSetJSONBody defines parameters for CreateGameSet.
@@ -548,9 +546,10 @@ type CreateCardJSONBody struct {
 // UpdateGameJSONBody defines parameters for UpdateGame.
 type UpdateGameJSONBody struct {
 	// BannerImage data url string containing mime type and Base64 encoded image data.
-	BannerImage             *string `json:"bannerImage,omitempty"`
-	BannerVerticalAlignment *int    `json:"bannerVerticalAlignment,omitempty"`
-	Description             *string `json:"description,omitempty"`
+	BannerImage             *string       `json:"bannerImage,omitempty"`
+	BannerVerticalAlignment *int          `json:"bannerVerticalAlignment,omitempty"`
+	Description             *string       `json:"description,omitempty"`
+	GamePlayData            *GamePlayData `json:"gamePlayData,omitempty"`
 
 	// Name The game's display name
 	Name *string `json:"name,omitempty"`
@@ -558,8 +557,8 @@ type UpdateGameJSONBody struct {
 	// Options Configuration options for how the game displays cards and other elements.
 	Options *GameOptions `json:"options,omitempty"`
 
-	// TitleColor Hex color code for the title text. E.g., '#fff'
-	TitleColor *string `json:"titleColor,omitempty"`
+	// Rules Markdown content for game rules. Stored in GCS, not returned in GET responses.
+	Rules *string `json:"rules,omitempty"`
 }
 
 // ListLobbiesParams defines parameters for ListLobbies.
@@ -585,9 +584,6 @@ type ListUserDecksParams struct {
 
 // CreateGameJSONRequestBody defines body for CreateGame for application/json ContentType.
 type CreateGameJSONRequestBody CreateGameJSONBody
-
-// SaveGameGridJSONRequestBody defines body for SaveGameGrid for application/json ContentType.
-type SaveGameGridJSONRequestBody = SaveGridRequest
 
 // CreateLorePostJSONRequestBody defines body for CreateLorePost for application/json ContentType.
 type CreateLorePostJSONRequestBody = CreateLorePostRequest
@@ -706,11 +702,6 @@ type ClientInterface interface {
 
 	CreateGame(ctx context.Context, body CreateGameJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// SaveGameGridWithBody request with any body
-	SaveGameGridWithBody(ctx context.Context, gameId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	SaveGameGrid(ctx context.Context, gameId string, body SaveGameGridJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
-
 	// ListLorePosts request
 	ListLorePosts(ctx context.Context, gameId string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -729,9 +720,6 @@ type ClientInterface interface {
 	UpdateLorePostWithBody(ctx context.Context, gameId string, postId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	UpdateLorePost(ctx context.Context, gameId string, postId string, body UpdateLorePostJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// SaveGameRulesWithBody request with any body
-	SaveGameRulesWithBody(ctx context.Context, gameId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListGameSets request
 	ListGameSets(ctx context.Context, gameId string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -832,6 +820,12 @@ type ClientInterface interface {
 	UpdateUserDeckWithBody(ctx context.Context, userId string, deckId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	UpdateUserDeck(ctx context.Context, userId string, deckId string, body UpdateUserDeckJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UnstarGame request
+	UnstarGame(ctx context.Context, userId string, gameId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StarGame request
+	StarGame(ctx context.Context, userId string, gameId string, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) Get(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -884,30 +878,6 @@ func (c *Client) CreateGameWithBody(ctx context.Context, contentType string, bod
 
 func (c *Client) CreateGame(ctx context.Context, body CreateGameJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateGameRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) SaveGameGridWithBody(ctx context.Context, gameId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewSaveGameGridRequestWithBody(c.Server, gameId, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) SaveGameGrid(ctx context.Context, gameId string, body SaveGameGridJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewSaveGameGridRequest(c.Server, gameId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -992,18 +962,6 @@ func (c *Client) UpdateLorePostWithBody(ctx context.Context, gameId string, post
 
 func (c *Client) UpdateLorePost(ctx context.Context, gameId string, postId string, body UpdateLorePostJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateLorePostRequest(c.Server, gameId, postId, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) SaveGameRulesWithBody(ctx context.Context, gameId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewSaveGameRulesRequestWithBody(c.Server, gameId, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -1446,6 +1404,30 @@ func (c *Client) UpdateUserDeck(ctx context.Context, userId string, deckId strin
 	return c.Client.Do(req)
 }
 
+func (c *Client) UnstarGame(ctx context.Context, userId string, gameId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUnstarGameRequest(c.Server, userId, gameId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) StarGame(ctx context.Context, userId string, gameId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStarGameRequest(c.Server, userId, gameId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // NewGetRequest generates requests for Get
 func NewGetRequest(server string) (*http.Request, error) {
 	var err error
@@ -1570,53 +1552,6 @@ func NewCreateGameRequestWithBody(server string, contentType string, body io.Rea
 	}
 
 	operationPath := fmt.Sprintf("/games")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("POST", queryURL.String(), body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", contentType)
-
-	return req, nil
-}
-
-// NewSaveGameGridRequest calls the generic SaveGameGrid builder with application/json body
-func NewSaveGameGridRequest(server string, gameId string, body SaveGameGridJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewSaveGameGridRequestWithBody(server, gameId, "application/json", bodyReader)
-}
-
-// NewSaveGameGridRequestWithBody generates requests for SaveGameGrid with any type of body
-func NewSaveGameGridRequestWithBody(server string, gameId string, contentType string, body io.Reader) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "gameId", gameId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/games/%s/grid", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1834,42 +1769,6 @@ func NewUpdateLorePostRequestWithBody(server string, gameId string, postId strin
 	}
 
 	operationPath := fmt.Sprintf("/games/%s/lore/%s", pathParam0, pathParam1)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("PUT", queryURL.String(), body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", contentType)
-
-	return req, nil
-}
-
-// NewSaveGameRulesRequestWithBody generates requests for SaveGameRules with any type of body
-func NewSaveGameRulesRequestWithBody(server string, gameId string, contentType string, body io.Reader) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "gameId", gameId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/games/%s/rules.md", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -3048,6 +2947,88 @@ func NewUpdateUserDeckRequestWithBody(server string, userId string, deckId strin
 	return req, nil
 }
 
+// NewUnstarGameRequest generates requests for UnstarGame
+func NewUnstarGameRequest(server string, userId string, gameId string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userId", userId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "gameId", gameId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/stars/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewStarGameRequest generates requests for StarGame
+func NewStarGameRequest(server string, userId string, gameId string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userId", userId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "gameId", gameId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/stars/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -3105,11 +3086,6 @@ type ClientWithResponsesInterface interface {
 
 	CreateGameWithResponse(ctx context.Context, body CreateGameJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateGameResponse, error)
 
-	// SaveGameGridWithBodyWithResponse request with any body
-	SaveGameGridWithBodyWithResponse(ctx context.Context, gameId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SaveGameGridResponse, error)
-
-	SaveGameGridWithResponse(ctx context.Context, gameId string, body SaveGameGridJSONRequestBody, reqEditors ...RequestEditorFn) (*SaveGameGridResponse, error)
-
 	// ListLorePostsWithResponse request
 	ListLorePostsWithResponse(ctx context.Context, gameId string, reqEditors ...RequestEditorFn) (*ListLorePostsResponse, error)
 
@@ -3128,9 +3104,6 @@ type ClientWithResponsesInterface interface {
 	UpdateLorePostWithBodyWithResponse(ctx context.Context, gameId string, postId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateLorePostResponse, error)
 
 	UpdateLorePostWithResponse(ctx context.Context, gameId string, postId string, body UpdateLorePostJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateLorePostResponse, error)
-
-	// SaveGameRulesWithBodyWithResponse request with any body
-	SaveGameRulesWithBodyWithResponse(ctx context.Context, gameId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SaveGameRulesResponse, error)
 
 	// ListGameSetsWithResponse request
 	ListGameSetsWithResponse(ctx context.Context, gameId string, reqEditors ...RequestEditorFn) (*ListGameSetsResponse, error)
@@ -3231,6 +3204,12 @@ type ClientWithResponsesInterface interface {
 	UpdateUserDeckWithBodyWithResponse(ctx context.Context, userId string, deckId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateUserDeckResponse, error)
 
 	UpdateUserDeckWithResponse(ctx context.Context, userId string, deckId string, body UpdateUserDeckJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateUserDeckResponse, error)
+
+	// UnstarGameWithResponse request
+	UnstarGameWithResponse(ctx context.Context, userId string, gameId string, reqEditors ...RequestEditorFn) (*UnstarGameResponse, error)
+
+	// StarGameWithResponse request
+	StarGameWithResponse(ctx context.Context, userId string, gameId string, reqEditors ...RequestEditorFn) (*StarGameResponse, error)
 }
 
 type GetResponse struct {
@@ -3313,34 +3292,6 @@ func (r CreateGameResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r CreateGameResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type SaveGameGridResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *struct {
-		// PlayerCount Player count setting saved.
-		PlayerCount *int `json:"playerCount,omitempty"`
-
-		// SlotsCount Number of slots saved.
-		SlotsCount *int `json:"slotsCount,omitempty"`
-	}
-}
-
-// Status returns HTTPResponse.Status
-func (r SaveGameGridResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r SaveGameGridResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -3450,27 +3401,6 @@ func (r UpdateLorePostResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r UpdateLorePostResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type SaveGameRulesResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-}
-
-// Status returns HTTPResponse.Status
-func (r SaveGameRulesResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r SaveGameRulesResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -4095,6 +4025,48 @@ func (r UpdateUserDeckResponse) StatusCode() int {
 	return 0
 }
 
+type UnstarGameResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r UnstarGameResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UnstarGameResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type StarGameResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r StarGameResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StarGameResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 // GetWithResponse request returning *GetResponse
 func (c *ClientWithResponses) GetWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetResponse, error) {
 	rsp, err := c.Get(ctx, reqEditors...)
@@ -4137,23 +4109,6 @@ func (c *ClientWithResponses) CreateGameWithResponse(ctx context.Context, body C
 		return nil, err
 	}
 	return ParseCreateGameResponse(rsp)
-}
-
-// SaveGameGridWithBodyWithResponse request with arbitrary body returning *SaveGameGridResponse
-func (c *ClientWithResponses) SaveGameGridWithBodyWithResponse(ctx context.Context, gameId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SaveGameGridResponse, error) {
-	rsp, err := c.SaveGameGridWithBody(ctx, gameId, contentType, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseSaveGameGridResponse(rsp)
-}
-
-func (c *ClientWithResponses) SaveGameGridWithResponse(ctx context.Context, gameId string, body SaveGameGridJSONRequestBody, reqEditors ...RequestEditorFn) (*SaveGameGridResponse, error) {
-	rsp, err := c.SaveGameGrid(ctx, gameId, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseSaveGameGridResponse(rsp)
 }
 
 // ListLorePostsWithResponse request returning *ListLorePostsResponse
@@ -4215,15 +4170,6 @@ func (c *ClientWithResponses) UpdateLorePostWithResponse(ctx context.Context, ga
 		return nil, err
 	}
 	return ParseUpdateLorePostResponse(rsp)
-}
-
-// SaveGameRulesWithBodyWithResponse request with arbitrary body returning *SaveGameRulesResponse
-func (c *ClientWithResponses) SaveGameRulesWithBodyWithResponse(ctx context.Context, gameId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SaveGameRulesResponse, error) {
-	rsp, err := c.SaveGameRulesWithBody(ctx, gameId, contentType, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseSaveGameRulesResponse(rsp)
 }
 
 // ListGameSetsWithResponse request returning *ListGameSetsResponse
@@ -4542,6 +4488,24 @@ func (c *ClientWithResponses) UpdateUserDeckWithResponse(ctx context.Context, us
 	return ParseUpdateUserDeckResponse(rsp)
 }
 
+// UnstarGameWithResponse request returning *UnstarGameResponse
+func (c *ClientWithResponses) UnstarGameWithResponse(ctx context.Context, userId string, gameId string, reqEditors ...RequestEditorFn) (*UnstarGameResponse, error) {
+	rsp, err := c.UnstarGame(ctx, userId, gameId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUnstarGameResponse(rsp)
+}
+
+// StarGameWithResponse request returning *StarGameResponse
+func (c *ClientWithResponses) StarGameWithResponse(ctx context.Context, userId string, gameId string, reqEditors ...RequestEditorFn) (*StarGameResponse, error) {
+	rsp, err := c.StarGame(ctx, userId, gameId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStarGameResponse(rsp)
+}
+
 // ParseGetResponse parses an HTTP response from a GetWithResponse call
 func ParseGetResponse(rsp *http.Response) (*GetResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -4620,38 +4584,6 @@ func ParseCreateGameResponse(rsp *http.Response) (*CreateGameResponse, error) {
 			return nil, err
 		}
 		response.JSON201 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseSaveGameGridResponse parses an HTTP response from a SaveGameGridWithResponse call
-func ParseSaveGameGridResponse(rsp *http.Response) (*SaveGameGridResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &SaveGameGridResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest struct {
-			// PlayerCount Player count setting saved.
-			PlayerCount *int `json:"playerCount,omitempty"`
-
-			// SlotsCount Number of slots saved.
-			SlotsCount *int `json:"slotsCount,omitempty"`
-		}
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
 
 	}
 
@@ -4773,22 +4705,6 @@ func ParseUpdateLorePostResponse(rsp *http.Response) (*UpdateLorePostResponse, e
 		}
 		response.JSON200 = &dest
 
-	}
-
-	return response, nil
-}
-
-// ParseSaveGameRulesResponse parses an HTTP response from a SaveGameRulesWithResponse call
-func ParseSaveGameRulesResponse(rsp *http.Response) (*SaveGameRulesResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &SaveGameRulesResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
 	}
 
 	return response, nil
@@ -5474,6 +5390,38 @@ func ParseUpdateUserDeckResponse(rsp *http.Response) (*UpdateUserDeckResponse, e
 		}
 		response.JSON200 = &dest
 
+	}
+
+	return response, nil
+}
+
+// ParseUnstarGameResponse parses an HTTP response from a UnstarGameWithResponse call
+func ParseUnstarGameResponse(rsp *http.Response) (*UnstarGameResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UnstarGameResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseStarGameResponse parses an HTTP response from a StarGameWithResponse call
+func ParseStarGameResponse(rsp *http.Response) (*StarGameResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StarGameResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
 	}
 
 	return response, nil
