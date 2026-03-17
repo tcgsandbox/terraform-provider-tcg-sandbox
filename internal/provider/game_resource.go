@@ -7,14 +7,16 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+		"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -22,8 +24,9 @@ import (
 )
 
 var (
-	_ resource.Resource              = &gameResource{}
-	_ resource.ResourceWithConfigure = &gameResource{}
+	_ resource.Resource                = &gameResource{}
+	_ resource.ResourceWithConfigure   = &gameResource{}
+	_ resource.ResourceWithImportState = &gameResource{}
 )
 
 func NewGameResource() resource.Resource {
@@ -297,6 +300,11 @@ func mapGameToResourceState(game *Game, state *gameResourceModel) {
 	state.Grid = mapGridFromAPI(game.GamePlayData)
 }
 
+// ImportState imports a game resource by ID.
+func (r *gameResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+}
+
 // Create creates the resource and sets the initial Terraform state.
 func (r *gameResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan gameResourceModel
@@ -438,14 +446,45 @@ func (r *gameResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	// Preserve fields the API doesn't return in the Game response
+	// Preserve banner_image_path from prior state (local file path, not in any API).
 	bannerImagePath := state.BannerImagePath
-	attrs := state.Attributes
-	rules := state.Rules
 	mapGameToResourceState(gameResp.JSON200, &state)
-	state.BannerImagePath = bannerImagePath
-	state.Attributes = attrs
-	state.Rules = rules
+	if !bannerImagePath.IsNull() && !bannerImagePath.IsUnknown() {
+		state.BannerImagePath = bannerImagePath
+	}
+
+	// Fetch attributes from the implicitly-created "base" game set.
+	gameID := state.ID.ValueString()
+	setResp, err := r.client.GetGameSetById(ctx, gameID, "base")
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to read base game set", err.Error())
+		return
+	}
+	parsedSet, err := ParseGetGameSetByIdResponse(setResp)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to parse base game set response", err.Error())
+		return
+	}
+	if parsedSet.JSON200 != nil {
+		attrs := make(map[string]types.String, len(parsedSet.JSON200.Attributes))
+		for k, v := range parsedSet.JSON200.Attributes {
+			attrs[k] = types.StringValue(string(v))
+		}
+		state.Attributes = attrs
+	}
+
+	// Fetch rules from the well-known GCS public URL.
+	rulesURL := fmt.Sprintf("https://storage.googleapis.com/tcg-sandbox/games/%s/rules.md", gameID)
+	rulesResp, err := http.Get(rulesURL)
+	if err == nil {
+		defer rulesResp.Body.Close()
+		if rulesResp.StatusCode == http.StatusOK {
+			body, err := io.ReadAll(rulesResp.Body)
+			if err == nil {
+				state.Rules = types.StringValue(string(body))
+			}
+		}
+	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
