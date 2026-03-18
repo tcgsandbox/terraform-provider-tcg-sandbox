@@ -19,9 +19,13 @@ apply-example:
 	terraform -chdir=examples/provider apply
 
 test:
-	go test -v -cover -timeout=120s -parallel=10 ./...
+	go test -v -timeout=120s -parallel=10 ./...
 
+# Assumption: acceptance tests are only ran locally
 testacc:
-	TF_ACC=1 go test -v -cover -timeout 120m ./...
+	TF_ACC=1 \
+	TCGSANDBOX_API_KEY="tcg_EtTxDYZOmncraEpLtu9rCR34PGIL1-YaJNn97ot8mEA" \
+	TCGSANDBOX_HOST="http://localhost:3000" \
+	go test -v -timeout 120m ./...
 
-.PHONY: fmt lint test testacc build install generate
+.PHONY: default fmt lint test testacc build install generate

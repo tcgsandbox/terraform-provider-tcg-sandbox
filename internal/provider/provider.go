@@ -88,14 +88,14 @@ func (p *TcgSandboxProvider) Configure(ctx context.Context, req provider.Configu
 
 	// Default to env vars, but override with config values
 	host := os.Getenv("TCGSANDBOX_HOST")
-	api_key := os.Getenv("TCGSANDBOX_API_KEY")
+	apiKey := os.Getenv("TCGSANDBOX_API_KEY")
 
 	if !config.Host.IsNull() {
 		host = config.Host.ValueString()
 	}
 
 	if !config.ApiKey.IsNull() {
-		api_key = config.ApiKey.ValueString()
+		apiKey = config.ApiKey.ValueString()
 	}
 
 	if host == "" {
@@ -106,7 +106,7 @@ func (p *TcgSandboxProvider) Configure(ctx context.Context, req provider.Configu
 		)
 	}
 
-	if api_key == "" {
+	if apiKey == "" {
 		resp.Diagnostics.AddAttributeError(
 			path.Root("api_key"),
 			"Missing tcg-sandbox API key",
@@ -132,7 +132,7 @@ func (p *TcgSandboxProvider) Configure(ctx context.Context, req provider.Configu
 	// Configure the client with authentication via request editor
 	// This adds the bearer token to each request
 	client.RequestEditors = append(client.RequestEditors, func(ctx context.Context, req *http.Request) error {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", api_key))
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
 		return nil
 	})
 
