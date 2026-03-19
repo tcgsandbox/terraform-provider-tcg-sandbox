@@ -17,7 +17,7 @@ PROVIDER_DIR="internal/provider"
 REPORT_FILE="/tmp/terraform-provider-api-analysis.md"
 
 # Entities to ignore — internal-only API endpoints not intended for Terraform use
-IGNORED_ENTITIES="api_key lobby page user user_deck"
+IGNORED_ENTITIES="api_key lobby page user user_deck game_set_card"
 
 is_ignored() {
     for ignored in $IGNORED_ENTITIES; do
