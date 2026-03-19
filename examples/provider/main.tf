@@ -41,4 +41,6 @@ resource "tcg-sandbox_game" "terraformed" {
   }
   banner_image_path         = "${path.root}/assets/game_banner.jpg"
   banner_vertical_alignment = 30
+
+
 }
