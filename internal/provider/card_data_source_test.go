@@ -23,18 +23,8 @@ resource "tcg-sandbox_game" "test" {
   }
 }
 
-resource "tcg-sandbox_game_set" "test" {
-  id      = "card-ds-test-set"
-  game_id = tcg-sandbox_game.test.id
-  name    = "Card DS Test Set"
-  attributes = {
-    "power" = "number"
-  }
-}
-
 resource "tcg-sandbox_card" "test" {
   game_id = tcg-sandbox_game.test.id
-  set_id  = tcg-sandbox_game_set.test.id
   name    = "DS Test Card"
   attributes = {
     "power" = "75"
@@ -44,7 +34,6 @@ resource "tcg-sandbox_card" "test" {
 data "tcg-sandbox_card" "test" {
   id      = tcg-sandbox_card.test.id
   game_id = tcg-sandbox_game.test.id
-  set_id  = tcg-sandbox_game_set.test.id
 }
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
@@ -59,10 +48,6 @@ data "tcg-sandbox_card" "test" {
 					resource.TestCheckResourceAttrPair(
 						"data.tcg-sandbox_card.test", "game_id",
 						"tcg-sandbox_card.test", "game_id",
-					),
-					resource.TestCheckResourceAttrPair(
-						"data.tcg-sandbox_card.test", "set_id",
-						"tcg-sandbox_card.test", "set_id",
 					),
 				),
 			},

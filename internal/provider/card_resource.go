@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
@@ -80,8 +82,10 @@ func (r *cardResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				},
 			},
 			"set_id": schema.StringAttribute{
-				MarkdownDescription: "The ID of the set this card belongs to.",
-				Required:            true,
+				MarkdownDescription: "The ID of the set this card belongs to. Defaults to \"base\".",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString("base"),
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -154,9 +158,17 @@ func (r *cardResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	// Convert attributes from map[string]types.String to map[string]interface{}.
+	// Attempt numeric conversion so the API receives the correct types.
 	attributes := make(map[string]interface{}, len(plan.Attributes))
 	for k, v := range plan.Attributes {
-		attributes[k] = v.ValueString()
+		s := v.ValueString()
+		if n, err := strconv.ParseFloat(s, 64); err == nil {
+			attributes[k] = n
+		} else if s == "true" || s == "false" {
+			attributes[k] = s == "true"
+		} else {
+			attributes[k] = s
+		}
 	}
 
 	body := CreateCardJSONRequestBody{

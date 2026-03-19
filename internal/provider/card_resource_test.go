@@ -11,7 +11,7 @@ func TestAccCardResource(t *testing.T) {
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Create and verify
+			// Create and verify — uses implicit "base" set
 			{
 				Config: providerConfig + `
 resource "tcg-sandbox_game" "test" {
@@ -24,18 +24,8 @@ resource "tcg-sandbox_game" "test" {
   }
 }
 
-resource "tcg-sandbox_game_set" "test" {
-  id      = "card-test-set"
-  game_id = tcg-sandbox_game.test.id
-  name    = "Card Test Set"
-  attributes = {
-    "power" = "number"
-  }
-}
-
 resource "tcg-sandbox_card" "test" {
   game_id = tcg-sandbox_game.test.id
-  set_id  = tcg-sandbox_game_set.test.id
   name    = "Test Card"
   description = "A test card"
   attributes = {
@@ -46,7 +36,7 @@ resource "tcg-sandbox_card" "test" {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet("tcg-sandbox_card.test", "id"),
 					resource.TestCheckResourceAttrSet("tcg-sandbox_card.test", "game_id"),
-					resource.TestCheckResourceAttrSet("tcg-sandbox_card.test", "set_id"),
+					resource.TestCheckResourceAttr("tcg-sandbox_card.test", "set_id", "base"),
 					resource.TestCheckResourceAttr("tcg-sandbox_card.test", "name", "Test Card"),
 					resource.TestCheckResourceAttr("tcg-sandbox_card.test", "description", "A test card"),
 					resource.TestCheckResourceAttr("tcg-sandbox_card.test", "attributes.power", "50"),

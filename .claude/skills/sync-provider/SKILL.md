@@ -107,7 +107,8 @@ Relevant generated types (verify these by reading client_generated.go):
 - Use `stringplanmodifier.UseStateForUnknown()` for Computed immutable fields (id, owner)
 - Parse responses with `Parse{Method}Response()` and check `JSON{StatusCode}` (e.g., JSON200, JSON201)
 - Treat nil JSON response as error: `fmt.Sprintf("Unexpected status: %s, body: %s", resp.Status(), string(resp.Body))`
-- For optional pointer fields from the API, use nil checks before setting values
+- For optional `*string` fields from the API: treat BOTH nil AND empty string as null. Do NOT use `optionalString()` — instead use explicit checks: `if ptr != nil && *ptr != "" { types.StringValue(*ptr) } else { types.StringNull() }`. The API returns `""` for unset optional fields, which causes "was null, but now cty.StringVal("")" errors if mapped as-is.
+- For `map[string]interface{}` attribute values sent to the API: attempt numeric conversion with `strconv.ParseFloat` and boolean conversion before sending, since the API validates attribute types against the game schema.
 
 ## Constraints
 - Do NOT modify provider.go — the orchestrator registers new entities
@@ -159,12 +160,11 @@ Skip this step if only existing entities were updated (no new files created).
 
 ## 5. Verify
 
-Run `make test`. If compilation fails, read the errors and fix them. Common issues:
+Run `make testacc` (which runs both unit and acceptance tests against the live API). If compilation fails, read the errors and fix them. Common issues:
 - Missing imports (add the appropriate `terraform-plugin-framework` packages)
 - Type mismatches between generated client types and Terraform model fields
 - Unregistered resources in provider.go
+- "Provider produced inconsistent result after apply" errors — usually caused by optional `*string` fields where the API returns `""` but Terraform expects null (see critical patterns above)
+- Attribute type validation errors — card-like resources need numeric/boolean coercion when sending `map[string]interface{}` attribute values to the API
 
-All unit tests MUST pass before reporting completion. The test run should show:
-- All new mapper function tests passing
-- All acceptance tests properly skipped (unless `TF_ACC` is set)
-- No compilation errors
+ALL tests (unit AND acceptance) MUST pass before reporting completion. Do NOT consider the task complete until `make testacc` exits with status 0.

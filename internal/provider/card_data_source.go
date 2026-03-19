@@ -66,8 +66,8 @@ func (d *cardDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 				Required:            true,
 			},
 			"set_id": schema.StringAttribute{
-				MarkdownDescription: "The ID of the set this card belongs to.",
-				Required:            true,
+				MarkdownDescription: "The ID of the set this card belongs to. Defaults to \"base\".",
+				Optional:            true,
 			},
 			"name": schema.StringAttribute{
 				MarkdownDescription: "The name of the card.",
@@ -98,7 +98,12 @@ func (d *cardDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	httpResp, err := d.client.GetCard(ctx, state.GameID.ValueString(), state.SetID.ValueString(), state.ID.ValueString())
+	setID := state.SetID.ValueString()
+	if state.SetID.IsNull() || state.SetID.IsUnknown() {
+		setID = "base"
+	}
+
+	httpResp, err := d.client.GetCard(ctx, state.GameID.ValueString(), setID, state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to Read Card", err.Error())
 		return

@@ -145,7 +145,6 @@ func (p *TcgSandboxProvider) DataSources(ctx context.Context) []func() datasourc
 	return []func() datasource.DataSource{
 		NewGameDataSource,
 		NewCardDataSource,
-		NewGameSetDataSource,
 		NewLorePostDataSource,
 	}
 }
@@ -154,7 +153,6 @@ func (p *TcgSandboxProvider) Resources(ctx context.Context) []func() resource.Re
 	return []func() resource.Resource{
 		NewGameResource,
 		NewCardResource,
-		NewGameSetResource,
 		NewLorePostResource,
 	}
 }

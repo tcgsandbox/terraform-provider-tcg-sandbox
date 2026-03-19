@@ -22,7 +22,11 @@ func mapCardToState(card *Card) (
 	gameID = types.StringValue(card.GameId)
 	setID = types.StringValue(card.SetId)
 	name = types.StringValue(card.Name)
-	description = optionalString(card.Description)
+	if card.Description != nil && *card.Description != "" {
+		description = types.StringValue(*card.Description)
+	} else {
+		description = types.StringNull()
+	}
 	cardImagePublicURL = optionalString(card.CardImagePublicUrl)
 
 	attributes = make(map[string]types.String, len(card.Attributes))
