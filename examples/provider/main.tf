@@ -3,11 +3,18 @@ terraform {
     tcg-sandbox = {
       source = "registry.terraform.io/bradlet/tcg-sandbox"
     }
+    # In your real terraform stack:
+    #tcg-sandbox = {
+    #  source  = "tcgsandbox/tcg-sandbox"
+    #  version = "0.0.1"
+    #}
   }
 }
 
 provider "tcg-sandbox" {
+  # https://api.tcg-sandbox.com
   host    = "http://localhost:3000"
+  # Dummy key: generate your own
   api_key = "tcg_EtTxDYZOmncraEpLtu9rCR34PGIL1-YaJNn97ot8mEA"
 }
 
