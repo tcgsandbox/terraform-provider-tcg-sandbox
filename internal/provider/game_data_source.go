@@ -23,15 +23,15 @@ type gameDataSource struct {
 }
 
 type gameDataSourceModel struct {
-	ID                      types.String      `tfsdk:"id"`
-	Owner                   types.String      `tfsdk:"owner"`
-	Name                    types.String      `tfsdk:"name"`
-	Description             types.String      `tfsdk:"description"`
-	BannerImagePublicUrl    types.String      `tfsdk:"banner_image_public_url"`
-	BannerVerticalAlignment types.Int64       `tfsdk:"banner_vertical_alignment"`
-	Playable                types.Bool        `tfsdk:"playable"`
-	GamePlayData            *gamePlayDataModel    `tfsdk:"game_play_data"`
-	Options                 *gameOptionsModel `tfsdk:"options"`
+	ID                      types.String       `tfsdk:"id"`
+	Owner                   types.String       `tfsdk:"owner"`
+	Name                    types.String       `tfsdk:"name"`
+	Description             types.String       `tfsdk:"description"`
+	BannerImagePublicUrl    types.String       `tfsdk:"banner_image_public_url"`
+	BannerVerticalAlignment types.Int64        `tfsdk:"banner_vertical_alignment"`
+	Playable                types.Bool         `tfsdk:"playable"`
+	GamePlayData            *gamePlayDataModel `tfsdk:"game_play_data"`
+	Options                 *gameOptionsModel  `tfsdk:"options"`
 }
 
 func (d *gameDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {

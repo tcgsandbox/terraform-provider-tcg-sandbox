@@ -48,7 +48,7 @@ type gameResourceModel struct {
 	Playable                types.Bool              `tfsdk:"playable"`
 	Options                 *gameOptionsModel       `tfsdk:"options"`
 	Rules                   *gameRulesModel         `tfsdk:"rules"`
-	GamePlayData            *gamePlayDataModel          `tfsdk:"game_play_data"`
+	GamePlayData            *gamePlayDataModel      `tfsdk:"game_play_data"`
 }
 
 const bannerImageHashKey = "banner_image_hash"
