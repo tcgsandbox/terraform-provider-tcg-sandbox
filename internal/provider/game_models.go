@@ -15,7 +15,7 @@ type gameOptionsModel struct {
 	CardDisplayContext types.String `tfsdk:"card_display_context"`
 }
 
-type gameGridModel struct {
+type gamePlayDataModel struct {
 	PlayerCount types.Int64     `tfsdk:"player_count"`
 	Slots       []gameSlotModel `tfsdk:"slots"`
 }
@@ -54,13 +54,13 @@ func mapOptionsFromAPI(opts *GameOptions) *gameOptionsModel {
 	return model
 }
 
-// mapGridFromAPI converts API GamePlayData to the shared Terraform grid model.
-func mapGridFromAPI(data *GamePlayData) *gameGridModel {
+// mapGamePlayDataFromAPI converts API GamePlayData to the shared Terraform gamePlayData model.
+func mapGamePlayDataFromAPI(data *GamePlayData) *gamePlayDataModel {
 	if data == nil {
 		return nil
 	}
 
-	grid := &gameGridModel{
+	gamePlayData := &gamePlayDataModel{
 		PlayerCount: types.Int64Value(int64(data.PlayerCount)),
 		Slots:       make([]gameSlotModel, 0, len(data.Slots)),
 	}
@@ -82,10 +82,10 @@ func mapGridFromAPI(data *GamePlayData) *gameGridModel {
 			model.PlayerOwner = types.Int64Null()
 		}
 
-		grid.Slots = append(grid.Slots, model)
+		gamePlayData.Slots = append(gamePlayData.Slots, model)
 	}
 
-	return grid
+	return gamePlayData
 }
 
 // optionalString returns a types.StringValue if the pointer is non-nil,
@@ -111,10 +111,10 @@ func newGameOptions(opts *gameOptionsModel) *GameOptions {
 	return apiOpts
 }
 
-// newGamePlayData converts the Terraform grid model to the generated API type.
-func newGamePlayData(grid *gameGridModel) *GamePlayData {
-	slots := make([]GridSlot, 0, len(grid.Slots))
-	for _, s := range grid.Slots {
+// newGamePlayData converts the Terraform gamePlayData model to the generated API type.
+func newGamePlayData(gamePlayData *gamePlayDataModel) *GamePlayData {
+	slots := make([]GridSlot, 0, len(gamePlayData.Slots))
+	for _, s := range gamePlayData.Slots {
 		slot := GridSlot{
 			Row:        int(s.Row.ValueInt64()),
 			Column:     int(s.Column.ValueInt64()),
@@ -131,7 +131,7 @@ func newGamePlayData(grid *gameGridModel) *GamePlayData {
 		slots = append(slots, slot)
 	}
 	return &GamePlayData{
-		PlayerCount: int(grid.PlayerCount.ValueInt64()),
+		PlayerCount: int(gamePlayData.PlayerCount.ValueInt64()),
 		Slots:       slots,
 	}
 }

@@ -84,14 +84,14 @@ func TestMapOptionsFromAPI_NilFields(t *testing.T) {
 
 func TestMapGridFromAPI_Nil(t *testing.T) {
 	t.Parallel()
-	if mapGridFromAPI(nil) != nil {
+	if mapGamePlayDataFromAPI(nil) != nil {
 		t.Error("expected nil for nil input")
 	}
 }
 
 func TestMapGridFromAPI_EmptySlots(t *testing.T) {
 	t.Parallel()
-	result := mapGridFromAPI(&GamePlayData{PlayerCount: 2, Slots: nil})
+	result := mapGamePlayDataFromAPI(&GamePlayData{PlayerCount: 2, Slots: nil})
 	if result == nil {
 		t.Fatal("expected non-nil result")
 	}
@@ -117,7 +117,7 @@ func TestMapGridFromAPI_SlotWithPlayerOwner(t *testing.T) {
 			},
 		},
 	}
-	result := mapGridFromAPI(data)
+	result := mapGamePlayDataFromAPI(data)
 	if len(result.Slots) != 1 {
 		t.Fatalf("expected 1 slot, got %d", len(result.Slots))
 	}
@@ -146,7 +146,7 @@ func TestMapGridFromAPI_SlotWithoutPlayerOwner(t *testing.T) {
 			},
 		},
 	}
-	result := mapGridFromAPI(data)
+	result := mapGamePlayDataFromAPI(data)
 	slot := result.Slots[0]
 	if !slot.PlayerOwner.IsNull() {
 		t.Errorf("expected PlayerOwner to be null, got %v", slot.PlayerOwner)
@@ -192,7 +192,7 @@ func TestNewGameOptions_FullModel(t *testing.T) {
 
 func TestNewGamePlayData_EmptySlots(t *testing.T) {
 	t.Parallel()
-	result := newGamePlayData(&gameGridModel{
+	result := newGamePlayData(&gamePlayDataModel{
 		PlayerCount: types.Int64Value(4),
 		Slots:       nil,
 	})
@@ -206,7 +206,7 @@ func TestNewGamePlayData_EmptySlots(t *testing.T) {
 
 func TestNewGamePlayData_SlotWithPlayerOwner(t *testing.T) {
 	t.Parallel()
-	model := &gameGridModel{
+	model := &gamePlayDataModel{
 		PlayerCount: types.Int64Value(2),
 		Slots: []gameSlotModel{
 			{
@@ -236,7 +236,7 @@ func TestNewGamePlayData_SlotWithPlayerOwner(t *testing.T) {
 
 func TestNewGamePlayData_SlotWithoutPlayerOwner(t *testing.T) {
 	t.Parallel()
-	model := &gameGridModel{
+	model := &gamePlayDataModel{
 		PlayerCount: types.Int64Value(1),
 		Slots: []gameSlotModel{
 			{
@@ -269,7 +269,7 @@ func TestGridRoundTrip(t *testing.T) {
 			{Row: 1, Column: 2, Width: 1, Height: 2, Type: "counters", MaxCount: 8, Visibility: "private"},
 		},
 	}
-	model := mapGridFromAPI(original)
+	model := mapGamePlayDataFromAPI(original)
 	result := newGamePlayData(model)
 
 	if result.PlayerCount != original.PlayerCount {

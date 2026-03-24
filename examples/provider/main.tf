@@ -51,7 +51,7 @@ resource "tcg-sandbox_game" "terraformed" {
     EOT
   }
 
-  grid {
+  game_play_data {
     player_count = 2
     slots = [
       {

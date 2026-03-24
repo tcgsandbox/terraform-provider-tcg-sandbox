@@ -30,7 +30,7 @@ type gameDataSourceModel struct {
 	BannerImagePublicUrl    types.String      `tfsdk:"banner_image_public_url"`
 	BannerVerticalAlignment types.Int64       `tfsdk:"banner_vertical_alignment"`
 	Playable                types.Bool        `tfsdk:"playable"`
-	GamePlayData            *gameGridModel    `tfsdk:"game_play_data"`
+	GamePlayData            *gamePlayDataModel    `tfsdk:"game_play_data"`
 	Options                 *gameOptionsModel `tfsdk:"options"`
 }
 
@@ -191,7 +191,7 @@ func (d *gameDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	state.BannerVerticalAlignment = types.Int64Value(int64(game.BannerVerticalAlignment))
 	state.Playable = types.BoolValue(game.Playable)
 	state.Owner = optionalString(game.Owner)
-	state.GamePlayData = mapGridFromAPI(game.GamePlayData)
+	state.GamePlayData = mapGamePlayDataFromAPI(game.GamePlayData)
 	state.Options = mapOptionsFromAPI(game.Options)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)

@@ -48,7 +48,7 @@ type gameResourceModel struct {
 	Playable                types.Bool              `tfsdk:"playable"`
 	Options                 *gameOptionsModel       `tfsdk:"options"`
 	Rules                   *gameRulesModel         `tfsdk:"rules"`
-	GamePlayData            *gameGridModel          `tfsdk:"game_play_data"`
+	GamePlayData            *gamePlayDataModel          `tfsdk:"game_play_data"`
 }
 
 const bannerImageHashKey = "banner_image_hash"
@@ -263,7 +263,7 @@ func mapGameToResourceState(game *Game, state *gameResourceModel) {
 	state.Playable = types.BoolValue(game.Playable)
 	state.Owner = optionalString(game.Owner)
 	state.Options = mapOptionsFromAPI(game.Options)
-	state.GamePlayData = mapGridFromAPI(game.GamePlayData)
+	state.GamePlayData = mapGamePlayDataFromAPI(game.GamePlayData)
 }
 
 // ImportState imports a game resource by ID.
