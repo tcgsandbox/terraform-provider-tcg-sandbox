@@ -127,8 +127,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Game'
+        '400':
+          description: Game name contains invalid characters.
         '401':
           description: Must be authenticated to create a game.
+        '409':
+          description: A game with the provided name already exists.
   /games/{id}:
     get:
       operationId: getGameById
@@ -193,9 +197,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/Game'
         '400':
-          description: Bad update
+          description: Bad update or display name contains invalid characters
         '403':
           description: Not authorized to update game
+        '409':
+          description: A game with the provided name already exists
     delete:
       operationId: deleteGame
       tags: [ Games ]
@@ -608,11 +614,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
         '400':
-          description: Invalid user data provided.
+          description: Invalid user data provided, display name contains invalid characters, or display name is reserved.
         '401':
           description: Must be authenticated to create a user.
         '409':
-          description: User already exists.
+          description: User already exists or display name is already taken.
   /users/{userId}:
     get:
       operationId: getUser
@@ -661,13 +667,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
         '400':
-          description: Invalid user data provided.
+          description: Invalid user data provided, display name contains invalid characters, or display name is reserved.
         '401':
           description: Must be authenticated to update a user.
         '403':
           description: Not authorized to update this user.
         '404':
           description: User not found.
+        '409':
+          description: Display name is already taken.
   /users/me/apikey:
     post:
       operationId: createApiKey

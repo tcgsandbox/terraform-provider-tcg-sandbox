@@ -13,7 +13,7 @@ terraform {
 
 provider "tcg-sandbox" {
   # https://api.tcg-sandbox.com
-  host    = "http://localhost:3000"
+  host = "http://localhost:3000"
   # Dummy key: generate your own
   api_key = "tcg_EtTxDYZOmncraEpLtu9rCR34PGIL1-YaJNn97ot8mEA"
 }

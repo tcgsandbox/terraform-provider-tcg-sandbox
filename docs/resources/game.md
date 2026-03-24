@@ -25,7 +25,7 @@ Manages a game in TCG Sandbox.
 
 ### Optional
 
-- `grid` (Block, Optional) The grid configuration and player count settings for the game board layout. (see [below for nested schema](#nestedblock--grid))
+- `game_play_data` (Block, Optional) The grid configuration and player count settings for the game board layout. (see [below for nested schema](#nestedblock--game_play_data))
 - `options` (Block, Optional) Configuration options for how the game displays cards and other elements. (see [below for nested schema](#nestedblock--options))
 - `rules` (Block, Optional) Game rules in markdown format. (see [below for nested schema](#nestedblock--rules))
 
@@ -36,16 +36,16 @@ Manages a game in TCG Sandbox.
 - `owner` (String) The user ID of the game owner.
 - `playable` (Boolean) Whether the game is ready to be played.
 
-<a id="nestedblock--grid"></a>
-### Nested Schema for `grid`
+<a id="nestedblock--game_play_data"></a>
+### Nested Schema for `game_play_data`
 
 Optional:
 
 - `player_count` (Number) The number of players for the game (1-4).
-- `slots` (Attributes List) Array of grid slots defining the game board layout. (see [below for nested schema](#nestedatt--grid--slots))
+- `slots` (Attributes List) Array of grid slots defining the game board layout. (see [below for nested schema](#nestedatt--game_play_data--slots))
 
-<a id="nestedatt--grid--slots"></a>
-### Nested Schema for `grid.slots`
+<a id="nestedatt--game_play_data--slots"></a>
+### Nested Schema for `game_play_data.slots`
 
 Required:
 

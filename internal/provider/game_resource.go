@@ -48,7 +48,7 @@ type gameResourceModel struct {
 	Playable                types.Bool              `tfsdk:"playable"`
 	Options                 *gameOptionsModel       `tfsdk:"options"`
 	Rules                   *gameRulesModel         `tfsdk:"rules"`
-	Grid                    *gameGridModel          `tfsdk:"grid"`
+	GamePlayData            *gameGridModel          `tfsdk:"game_play_data"`
 }
 
 const bannerImageHashKey = "banner_image_hash"
@@ -162,7 +162,7 @@ func (r *gameResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 					},
 				},
 			},
-			"grid": schema.SingleNestedBlock{
+			"game_play_data": schema.SingleNestedBlock{
 				MarkdownDescription: "The grid configuration and player count settings for the game board layout.",
 				Attributes: map[string]schema.Attribute{
 					"player_count": schema.Int64Attribute{
@@ -263,7 +263,7 @@ func mapGameToResourceState(game *Game, state *gameResourceModel) {
 	state.Playable = types.BoolValue(game.Playable)
 	state.Owner = optionalString(game.Owner)
 	state.Options = mapOptionsFromAPI(game.Options)
-	state.Grid = mapGridFromAPI(game.GamePlayData)
+	state.GamePlayData = mapGridFromAPI(game.GamePlayData)
 }
 
 // ImportState imports a game resource by ID.
@@ -335,8 +335,8 @@ func (r *gameResource) Create(ctx context.Context, req resource.CreateRequest, r
 		updateBody.Rules = &rules
 		needsUpdate = true
 	}
-	if plan.Grid != nil {
-		updateBody.GamePlayData = newGamePlayData(plan.Grid)
+	if plan.GamePlayData != nil {
+		updateBody.GamePlayData = newGamePlayData(plan.GamePlayData)
 		needsUpdate = true
 	}
 	if needsUpdate {
@@ -485,8 +485,8 @@ func (r *gameResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		body.Rules = &rules
 	}
 
-	if plan.Grid != nil {
-		body.GamePlayData = newGamePlayData(plan.Grid)
+	if plan.GamePlayData != nil {
+		body.GamePlayData = newGamePlayData(plan.GamePlayData)
 	}
 
 	// Re-read and send the banner image if the path or file contents changed
