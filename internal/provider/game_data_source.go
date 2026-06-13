@@ -133,6 +133,10 @@ func (d *gameDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 									MarkdownDescription: "The player number (1-based) who owns this slot, or null if no player owns it.",
 									Computed:            true,
 								},
+								"name": schema.StringAttribute{
+									MarkdownDescription: "Optional display label for this slot/zone (e.g. \"Battlefield\"). Purely cosmetic.",
+									Computed:            true,
+								},
 							},
 						},
 					},

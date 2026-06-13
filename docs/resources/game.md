@@ -59,6 +59,7 @@ Required:
 
 Optional:
 
+- `name` (String) Optional display label for this slot/zone (e.g. "Battlefield"). Purely cosmetic.
 - `player_owner` (Number) The player number (1-based) who owns this slot, or null if unowned.
 
 

@@ -49,6 +49,7 @@ Read-Only:
 - `column` (Number) The column position of the slot in the grid (0-based index).
 - `height` (Number) The height of the slot in grid units (how many rows it spans).
 - `max_count` (Number) The maximum number of items this slot can hold.
+- `name` (String) Optional display label for this slot/zone (e.g. "Battlefield"). Purely cosmetic.
 - `player_owner` (Number) The player number (1-based) who owns this slot, or null if no player owns it.
 - `row` (Number) The row position of the slot in the grid (0-based index).
 - `type` (String) The types of content a grid slot can hold.

@@ -52,6 +52,7 @@ paths:
   /pages/{page}:
     get:
       operationId: getPage
+      tags: [ Pages ]
       summary: Retrieve a page by its identifier.
       parameters:
         - name: page
@@ -72,11 +73,52 @@ paths:
     get:
       operationId: listGames
       tags: [ Games ]
-      summary: List all games available across TCG Sandbox.
+      summary: Search, filter, sort, and page through games available across TCG Sandbox.
       parameters:
         - name: uid
           in: query
-          description: Optional UID to filter games by owner.
+          description: >
+            Optional UID to filter games by owner. When provided, the legacy owner listing is
+            returned (all owned games, name order, no pagination) and the other parameters are ignored.
+          required: false
+          schema:
+            type: string
+        - name: q
+          in: query
+          description: >
+            Optional search term. Matches case-insensitively at the start of any word in the
+            game name, or a phrase from the start of the name.
+          required: false
+          schema:
+            type: string
+        - name: sort
+          in: query
+          description: Sort order for results.
+          required: false
+          schema:
+            type: string
+            enum: [ stars, name ]
+            default: stars
+        - name: filter
+          in: query
+          description: Whether to include only playable games or all games.
+          required: false
+          schema:
+            type: string
+            enum: [ playable, all ]
+            default: playable
+        - name: pageSize
+          in: query
+          description: Number of games per page (1-100).
+          required: false
+          schema:
+            type: integer
+            default: 24
+            minimum: 1
+            maximum: 100
+        - name: pageToken
+          in: query
+          description: Opaque cursor from a previous response's nextPageToken.
           required: false
           schema:
             type: string
@@ -86,9 +128,9 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Game'
+                $ref: '#/components/schemas/GameListResponse'
+        '400':
+          description: Invalid sort or filter value.
     post:
       operationId: createGame
       tags: [ Games ]
@@ -133,6 +175,44 @@ paths:
           description: Must be authenticated to create a game.
         '409':
           description: A game with the provided name already exists.
+  /games/starred:
+    get:
+      operationId: listStarredGames
+      tags: [ Games ]
+      summary: List the authenticated user's starred games - Authentication required.
+      description: >
+        Returns the games the calling user has starred, resolved from their starred game id list.
+        Unlike /games this is unpaginated (a starred list is bounded by the user's own activity):
+        nextPageToken is always null and totalCount is the full size. Supports the same q (word-prefix
+        name search) and sort parameters so the game selector's controls stay coherent.
+      parameters:
+        - name: q
+          in: query
+          description: >
+            Optional search term. Matches case-insensitively at the start of any word in the
+            game name, or a phrase from the start of the name.
+          required: false
+          schema:
+            type: string
+        - name: sort
+          in: query
+          description: Sort order for results.
+          required: false
+          schema:
+            type: string
+            enum: [ stars, name ]
+            default: stars
+      responses:
+        '200':
+          description: Starred games retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameListResponse'
+        '400':
+          description: Invalid sort value.
+        '401':
+          description: Must be authenticated to view starred games.
   /games/{id}:
     get:
       operationId: getGameById
@@ -801,82 +881,6 @@ paths:
           description: Not authorized to unstar games for this user.
         '404':
           description: User or game not found, or game was not starred.
-  /lobbies:
-    post:
-      operationId: createLobby
-      tags: [ Lobbies ]
-      summary: Create a new lobby - Authentication required.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateLobbyRequest'
-      responses:
-        '201':
-          description: Lobby created successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GameLobbyResponse'
-        '400':
-          description: Invalid lobby data provided.
-        '401':
-          description: Must be authenticated to create a lobby.
-        '403':
-          description: Not authorized to create this lobby.
-        '404':
-          description: Game or host not found.
-        '412':
-          description: Precondition failed - user has no decks for this game.
-    get:
-      operationId: listLobbies
-      tags: [ Lobbies ]
-      summary: List all lobbies
-      parameters:
-        - name: state
-          in: query
-          required: false
-          description: Filter lobbies by state (open, in_progress, closed, abandoned).
-          schema:
-            $ref: '#/components/schemas/GameLobbyState'
-        - name: gameId
-          in: query
-          required: false
-          description: Filter lobbies by game ID.
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Lobbies retrieved successfully.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/GameLobbyResponse'
-        '401':
-          description: Must be authenticated to list lobbies.
-  /lobbies/{id}:
-    get:
-      operationId: getLobbyById
-      tags: [ Lobbies ]
-      summary: Get details of a lobby by its ID.
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Lobby details retrieved successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GameLobbyResponse'
-        '404':
-          description: Lobby not found.
   /users/{userId}/decks:
     get:
       operationId: listUserDecks
@@ -1025,6 +1029,39 @@ paths:
           description: Not authorized to delete this deck.
         '404':
           description: User not found.
+  /community/issues:
+    get:
+      operationId: listCommunityIssues
+      tags: [ Internal ]
+      summary: List community issues from GitHub, sorted by thumbs-up reactions.
+      description: Returns a paginated list of open issues from the tcgsandbox/community GitHub repository, sorted by thumbs-up reaction count (descending). Results are cached server-side with a 5-minute TTL.
+      parameters:
+        - name: page
+          in: query
+          description: Page number (1-based).
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: perPage
+          in: query
+          description: Number of issues per page.
+          required: false
+          schema:
+            type: integer
+            default: 5
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Community issues retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityIssuesResponse'
+        '500':
+          description: Failed to fetch issues from GitHub.
 tags:
   - name: Games
     description: Endpoints related to game management.
@@ -1038,8 +1075,8 @@ tags:
     description: Endpoints for managing user decks.
   - name: Lore
     description: Endpoints for managing game lore posts.
-  - name: Lobbies
-    description: Endpoints for managing game lobbies -- **API KEYS NOT SUPPORTED**.
+  - name: Internal
+    description: Internal endpoints that will eventually be moved to a separate internal API. Not intended for API key access.
 components:
   schemas:
     Metadata:
@@ -1154,10 +1191,6 @@ components:
       type: string
       enum: [ 'string', 'number', 'boolean' ]
       description: The types supported by game attributes.
-    GameLobbyState:
-      type: string
-      enum: [ 'open', 'in_progress', 'closed', 'abandoned' ]
-      description: The various states a game lobby can be in.
     UserRole:
       type: string
       enum: [ 'basic', 'subscriber', 'admin' ]
@@ -1201,6 +1234,10 @@ components:
     GridSlot:
       type: object
       properties:
+        name:
+          type: string
+          description: Optional display label for this slot/zone (e.g. "Battlefield"). Purely cosmetic.
+          maxLength: 32
         row:
           type: integer
           description: The row position of the slot in the grid (0-based index).
@@ -1424,56 +1461,24 @@ components:
           default: 0
       required:
         - starCount
-    CreateLobbyRequest:
+    GameListResponse:
       type: object
       properties:
-        gameId:
-          type: string
-          description: The ID of the game this lobby is for.
-        host:
-          type: string
-          description: The user ID of the host creating the lobby.
-      required:
-        - gameId
-        - host
-    GameLobbyResponse:
-      type: object
-      properties:
-        id:
-          type: string
-          description: The ID of the lobby.
-        gameId:
-          type: string
-          description: The ID of the game this lobby is for.
-        host:
-          type: string
-          description: The ID of the host creating the lobby.
-        players:
+        items:
           type: array
           items:
-            type: string
-          description: List of player IDs currently in the lobby.
-        playerDecks:
-          type: object
-          additionalProperties:
-            type: string
-          description: Map of player IDs to their selected deck IDs for players who have joined with a deck.
-        state:
-          $ref: '#/components/schemas/GameLobbyState'
-        expireAt:
+            $ref: '#/components/schemas/Game'
+        nextPageToken:
           type: string
-          format: date-time
-          description: The timestamp when the lobby will expire and be automatically cleaned up.
-        metadata:
-          $ref: '#/components/schemas/Metadata'
+          nullable: true
+          description: Opaque cursor for the next page; absent/null when there are no more results.
+        totalCount:
+          type: integer
+          format: int64
+          nullable: true
+          description: Total number of games matching the query. Only computed on the first page.
       required:
-        - id
-        - gameId
-        - host
-        - players
-        - playerDecks
-        - state
-        - expireAt
+        - items
     LorePost:
       type: object
       properties:
@@ -1566,3 +1571,58 @@ components:
       required:
         - rootPages
         - sections
+    CommunityIssue:
+      type: object
+      description: A community issue from the tcgsandbox/community GitHub repository.
+      properties:
+        number:
+          type: integer
+          description: The GitHub issue number.
+        title:
+          type: string
+          description: The title of the issue.
+        url:
+          type: string
+          description: The URL to view the issue on GitHub.
+        thumbsUpCount:
+          type: integer
+          description: The number of thumbs-up reactions on the issue.
+        createdAt:
+          type: string
+          format: date-time
+          description: The timestamp when the issue was created.
+        labels:
+          type: array
+          items:
+            type: string
+          description: The labels applied to the issue.
+      required:
+        - number
+        - title
+        - url
+        - thumbsUpCount
+        - createdAt
+        - labels
+    CommunityIssuesResponse:
+      type: object
+      description: A paginated response of community issues.
+      properties:
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommunityIssue'
+          description: The list of issues for the current page.
+        page:
+          type: integer
+          description: The current page number.
+        perPage:
+          type: integer
+          description: The number of issues per page.
+        totalCount:
+          type: integer
+          description: The total number of open issues.
+      required:
+        - issues
+        - page
+        - perPage
+        - totalCount

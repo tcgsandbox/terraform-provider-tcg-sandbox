@@ -206,6 +206,10 @@ func (r *gameResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 									MarkdownDescription: "The player number (1-based) who owns this slot, or null if unowned.",
 									Optional:            true,
 								},
+								"name": schema.StringAttribute{
+									MarkdownDescription: "Optional display label for this slot/zone (e.g. \"Battlefield\"). Purely cosmetic.",
+									Optional:            true,
+								},
 							},
 						},
 					},

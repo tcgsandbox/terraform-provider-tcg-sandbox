@@ -29,6 +29,7 @@ type gameSlotModel struct {
 	MaxCount    types.Int64  `tfsdk:"max_count"`
 	Visibility  types.String `tfsdk:"visibility"`
 	PlayerOwner types.Int64  `tfsdk:"player_owner"`
+	Name        types.String `tfsdk:"name"`
 }
 
 // mapOptionsFromAPI converts an API GameOptions to the shared Terraform model.
@@ -82,6 +83,12 @@ func mapGamePlayDataFromAPI(data *GamePlayData) *gamePlayDataModel {
 			model.PlayerOwner = types.Int64Null()
 		}
 
+		if slot.Name != nil && *slot.Name != "" {
+			model.Name = types.StringValue(*slot.Name)
+		} else {
+			model.Name = types.StringNull()
+		}
+
 		gamePlayData.Slots = append(gamePlayData.Slots, model)
 	}
 
@@ -127,6 +134,10 @@ func newGamePlayData(gamePlayData *gamePlayDataModel) *GamePlayData {
 		if !s.PlayerOwner.IsNull() && !s.PlayerOwner.IsUnknown() {
 			po := int(s.PlayerOwner.ValueInt64())
 			slot.PlayerOwner = &po
+		}
+		if !s.Name.IsNull() && !s.Name.IsUnknown() {
+			n := s.Name.ValueString()
+			slot.Name = &n
 		}
 		slots = append(slots, slot)
 	}

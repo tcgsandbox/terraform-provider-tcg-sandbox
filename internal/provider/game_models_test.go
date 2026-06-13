@@ -153,6 +153,45 @@ func TestMapGridFromAPI_SlotWithoutPlayerOwner(t *testing.T) {
 	}
 }
 
+func TestMapGridFromAPI_SlotWithName(t *testing.T) {
+	t.Parallel()
+	data := &GamePlayData{
+		PlayerCount: 1,
+		Slots: []GridSlot{
+			{
+				Row: 0, Column: 0, Width: 1, Height: 1,
+				Type:       SlotType("cards"),
+				MaxCount:   1,
+				Visibility: SlotVisibility("public"),
+				Name:       strPtr("Battlefield"),
+			},
+		},
+	}
+	result := mapGamePlayDataFromAPI(data)
+	slot := result.Slots[0]
+	if slot.Name.IsNull() || slot.Name.ValueString() != "Battlefield" {
+		t.Errorf("expected Name=Battlefield, got %v", slot.Name)
+	}
+}
+
+func TestMapGridFromAPI_SlotWithoutName(t *testing.T) {
+	t.Parallel()
+	// The API returns nil or "" for an unset optional name; both must map to null.
+	data := &GamePlayData{
+		PlayerCount: 1,
+		Slots: []GridSlot{
+			{Row: 0, Column: 0, Width: 1, Height: 1, Type: "cards", MaxCount: 1, Visibility: "public", Name: nil},
+			{Row: 1, Column: 0, Width: 1, Height: 1, Type: "cards", MaxCount: 1, Visibility: "public", Name: strPtr("")},
+		},
+	}
+	result := mapGamePlayDataFromAPI(data)
+	for i, slot := range result.Slots {
+		if !slot.Name.IsNull() {
+			t.Errorf("slot[%d]: expected Name to be null, got %v", i, slot.Name)
+		}
+	}
+}
+
 // --- newGameOptions ---
 
 func TestNewGameOptions_NilModel(t *testing.T) {
@@ -256,6 +295,34 @@ func TestNewGamePlayData_SlotWithoutPlayerOwner(t *testing.T) {
 	if slot.PlayerOwner != nil {
 		t.Errorf("expected PlayerOwner to be nil, got %v", slot.PlayerOwner)
 	}
+	if slot.Name != nil {
+		t.Errorf("expected Name to be nil, got %v", slot.Name)
+	}
+}
+
+func TestNewGamePlayData_SlotWithName(t *testing.T) {
+	t.Parallel()
+	model := &gamePlayDataModel{
+		PlayerCount: types.Int64Value(1),
+		Slots: []gameSlotModel{
+			{
+				Row:         types.Int64Value(0),
+				Column:      types.Int64Value(0),
+				Width:       types.Int64Value(1),
+				Height:      types.Int64Value(1),
+				Type:        types.StringValue("cards"),
+				MaxCount:    types.Int64Value(1),
+				Visibility:  types.StringValue("public"),
+				PlayerOwner: types.Int64Null(),
+				Name:        types.StringValue("Battlefield"),
+			},
+		},
+	}
+	result := newGamePlayData(model)
+	slot := result.Slots[0]
+	if slot.Name == nil || *slot.Name != "Battlefield" {
+		t.Errorf("expected Name=Battlefield, got %v", slot.Name)
+	}
 }
 
 // --- round-trip: mapGridFromAPI <-> newGamePlayData ---
@@ -265,7 +332,7 @@ func TestGridRoundTrip(t *testing.T) {
 	original := &GamePlayData{
 		PlayerCount: 3,
 		Slots: []GridSlot{
-			{Row: 0, Column: 0, Width: 2, Height: 1, Type: "cards", MaxCount: 4, Visibility: "public", PlayerOwner: intPtr(1)},
+			{Row: 0, Column: 0, Width: 2, Height: 1, Type: "cards", MaxCount: 4, Visibility: "public", PlayerOwner: intPtr(1), Name: strPtr("Battlefield")},
 			{Row: 1, Column: 2, Width: 1, Height: 2, Type: "counters", MaxCount: 8, Visibility: "private"},
 		},
 	}
@@ -291,6 +358,12 @@ func TestGridRoundTrip(t *testing.T) {
 			t.Errorf("slot[%d] expected nil PlayerOwner, got %d", i, *got.PlayerOwner)
 		case want.PlayerOwner != nil && (got.PlayerOwner == nil || *got.PlayerOwner != *want.PlayerOwner):
 			t.Errorf("slot[%d] PlayerOwner mismatch: want %d, got %v", i, *want.PlayerOwner, got.PlayerOwner)
+		}
+		switch {
+		case want.Name == nil && got.Name != nil:
+			t.Errorf("slot[%d] expected nil Name, got %q", i, *got.Name)
+		case want.Name != nil && (got.Name == nil || *got.Name != *want.Name):
+			t.Errorf("slot[%d] Name mismatch: want %q, got %v", i, *want.Name, got.Name)
 		}
 	}
 }
