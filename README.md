@@ -60,6 +60,20 @@ make test
 make testacc
 ```
 
+### Releasing
+
+Releases are triggered by pushing a semver tag. The
+[release workflow](.github/workflows/release.yml) runs GoReleaser, which builds
+and GPG-signs the binaries, publishes a GitHub Release, and the Terraform
+Registry picks up the new version automatically.
+
+```bash
+git tag v0.0.4
+git push origin v0.0.4
+```
+
+Before tagging: update `CHANGELOG.md` and run `make generate` so `docs/` is current.
+
 ## License
 
 [MIT](LICENSE-MIT)
